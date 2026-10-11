@@ -169,9 +169,7 @@ export function toBody(
   const acceptedContentTypes = getAcceptedContentTypes(request.headers)
 
   let mediaTypeObject:
-    | OpenAPIV3.MediaTypeObject
-    | OpenAPIV3_1.MediaTypeObject
-    | undefined
+    OpenAPIV3.MediaTypeObject | OpenAPIV3_1.MediaTypeObject | undefined
   const responseContentTypes = Object.keys(content)
 
   // Lookup the first response content type that satisfies
@@ -220,9 +218,7 @@ export function toBody(
 
     if (exampleName) {
       const exampleByName = mediaTypeObject.examples[exampleName] as
-        | OpenAPIV3.ExampleObject
-        | OpenAPIV3_1.ExampleObject
-        | undefined
+        OpenAPIV3.ExampleObject | OpenAPIV3_1.ExampleObject | undefined
       return exampleByName
         ? exampleByName.value
         : `Cannot find example by name "${exampleName}"`
@@ -230,8 +226,7 @@ export function toBody(
 
     // Otherwise, use the first example.
     const firstExample = Object.values(mediaTypeObject.examples)[0] as
-      | OpenAPIV3.ExampleObject
-      | OpenAPIV3_1.ExampleObject
+      OpenAPIV3.ExampleObject | OpenAPIV3_1.ExampleObject
 
     if (typeof firstExample.value === 'object') {
       return JSON.stringify(firstExample.value)
@@ -276,5 +271,13 @@ export function getAcceptedContentTypes(headers: Headers): string[] {
 }
 
 function contentTypeToRegExp(contentType: string): RegExp {
-  return new RegExp(contentType.replace(/\/+/g, '\\/').replace(/\*/g, '.+?'))
+  // Escape every regular expression metacharacter so that media types
+  // with a structured syntax suffix (e.g. "application/vnd.api+json")
+  // are matched literally. Only the "*" wildcard is kept special.
+  return new RegExp(
+    contentType
+      .split('*')
+      .map((part) => part.replace(/[.+?^${}()|[\]\\/]/g, '\\$&'))
+      .join('.+?'),
+  )
 }

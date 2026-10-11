@@ -293,6 +293,66 @@ it('respects the "Accept" request header', async () => {
   )
 })
 
+it('respects the "Accept" request header for media types with a structured syntax suffix', async () => {
+  const handlers = await fromOpenApi(
+    createOpenApiSpec({
+      paths: {
+        '/items': {
+          get: {
+            responses: {
+              200: {
+                content: {
+                  'application/json': {
+                    example: { kind: 'json' },
+                  },
+                  'application/vnd.api+json': {
+                    example: { kind: 'json-api' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  )
+
+  await expect(
+    await withHandlers(handlers, () => {
+      return fetch('http://localhost/items', {
+        headers: {
+          Accept: 'application/vnd.api+json',
+        },
+      })
+    }),
+  ).toEqualResponse(
+    new Response(JSON.stringify({ kind: 'json-api' }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.api+json',
+      },
+    }),
+  )
+
+  // The "*" wildcard still matches any subtype.
+  await expect(
+    await withHandlers(handlers, () => {
+      return fetch('http://localhost/items', {
+        headers: {
+          Accept: 'application/*',
+        },
+      })
+    }),
+  ).toEqualResponse(
+    new Response(JSON.stringify({ kind: 'json' }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }),
+  )
+})
+
 it('responds with 201 to a POST request with a 201 response defined', async () => {
   const handlers = await fromOpenApi(
     createOpenApiSpec({
